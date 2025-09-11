@@ -6,7 +6,7 @@ server:
 
 # Docker build
 docker:
-	docker build -t unregistry .
+	docker build -t dollarkiller/unregistry:latest .
 
 # Build client for Linux
 client-linux:
