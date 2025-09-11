@@ -12,9 +12,7 @@ COPY --from=builder /app/server .
 RUN mkdir -p /data
 
 EXPOSE 8080
-
 ENV LISTEN_ADDR=0.0.0.0:8080
 ENV DATA_PATH=/data
-ENV TOKEN=123456
 
 CMD ["./server"]
