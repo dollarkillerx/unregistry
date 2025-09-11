@@ -12,6 +12,10 @@ docker:
 client-linux:
 	GOOS=linux GOARCH=amd64 go build -o bin/unrg-linux ./cmd/client
 
+# Build client for Mac
+client-mac:
+	GOOS=darwin GOARCH=arm64 go build -o bin/unrg-mac ./cmd/client
+
 # Clean
 clean:
 	rm -rf bin/
