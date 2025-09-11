@@ -12,6 +12,25 @@ A lightweight private file and Docker image storage system with client-server ar
 
 ## Quick Start
 
+### cli
+
+mac: 
+```
+curl -L https://github.com/dollarkillerx/unregistry/releases/download/v0.0.1/unrg-mac > /usr/local/bin/unrg
+chmod +x /usr/local/bin/unrg
+```
+linux:
+```
+curl -L https://github.com/dollarkillerx/unregistry/releases/download/v0.0.1/unrg-linux > /usr/local/bin/unrg
+chmod +x /usr/local/bin/unrg
+```
+
+setconfig
+```
+unrg config set-url http://127.0.0.0:8888
+unrg config set-token xxxxxxxxxxx
+```
+
 ### Server Setup
 
 1. **Build Docker image**:

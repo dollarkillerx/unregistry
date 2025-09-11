@@ -8,13 +8,10 @@ server:
 docker:
 	docker build -t dollarkiller/unregistry:latest .
 
-# Build client for Linux
 client-linux:
-	GOOS=linux GOARCH=amd64 go build -o bin/unrg-linux ./cmd/client
-
-# Build client for Mac
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/unrg-linux ./cmd/client
 client-mac:
-	GOOS=darwin GOARCH=arm64 go build -o bin/unrg-mac ./cmd/client
+	GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o bin/unrg-mac ./cmd/client
 
 # Clean
 clean:
