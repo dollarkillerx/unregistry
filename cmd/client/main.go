@@ -92,13 +92,13 @@ var filePushCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		
-		err = client.UploadFile(filePath)
+		err = client.UploadFileWithProgress(filePath, true)
 		if err != nil {
 			fmt.Printf("Upload failed: %v\n", err)
 			os.Exit(1)
 		}
 		
-		fmt.Printf("File %s uploaded successfully\n", filepath.Base(filePath))
+		fmt.Printf("\nFile %s uploaded successfully\n", filepath.Base(filePath))
 	},
 }
 
@@ -119,7 +119,7 @@ var filePullCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		
-		err = client.DownloadFile(filename, dest)
+		err = client.DownloadFileWithProgress(filename, dest, true)
 		if err != nil {
 			fmt.Printf("Download failed: %v\n", err)
 			os.Exit(1)
@@ -128,7 +128,7 @@ var filePullCmd = &cobra.Command{
 		if dest == "" {
 			dest = filename
 		}
-		fmt.Printf("File downloaded to: %s\n", dest)
+		fmt.Printf("\nFile downloaded to: %s\n", dest)
 	},
 }
 
@@ -206,7 +206,7 @@ var imgPushCmd = &cobra.Command{
 		tempFile := fmt.Sprintf("/tmp/%s.tar.gz", strings.ReplaceAll(dockerImage, "/", "_"))
 		defer os.Remove(tempFile)
 		
-		fmt.Printf("Saving Docker image %s...\n", dockerImage)
+		fmt.Println("Preparing Docker image...")
 		saveCmd := exec.Command("docker", "save", dockerImage)
 		gzipCmd := exec.Command("gzip")
 		
@@ -239,14 +239,13 @@ var imgPushCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		
-		fmt.Println("Uploading image...")
-		err = client.UploadImage(tempFile)
+		err = client.UploadImageWithProgress(tempFile, true)
 		if err != nil {
 			fmt.Printf("Upload failed: %v\n", err)
 			os.Exit(1)
 		}
 		
-		fmt.Printf("Image %s pushed successfully\n", dockerImage)
+		fmt.Printf("\nImage %s pushed successfully\n", dockerImage)
 	},
 }
 
@@ -267,8 +266,7 @@ var imgPullCmd = &cobra.Command{
 		tempFile := fmt.Sprintf("/tmp/%s.tar.gz", strings.ReplaceAll(dockerImage, "/", "_"))
 		defer os.Remove(tempFile)
 		
-		fmt.Printf("Downloading image %s...\n", dockerImage)
-		err = client.DownloadImage(dockerImage, tempFile)
+		err = client.DownloadImageWithProgress(dockerImage, tempFile, true)
 		if err != nil {
 			fmt.Printf("Download failed: %v\n", err)
 			os.Exit(1)
@@ -296,7 +294,7 @@ var imgPullCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		
-		fmt.Printf("Image %s pulled successfully\n", dockerImage)
+		fmt.Printf("\nImage %s pulled successfully\n", dockerImage)
 	},
 }
 

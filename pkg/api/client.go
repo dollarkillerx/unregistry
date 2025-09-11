@@ -1,7 +1,6 @@
 package api
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,6 +8,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+
+	"github.com/dollarkillerx/unregistry/pkg/progress"
 )
 
 type Client struct {
@@ -41,42 +43,73 @@ func (c *Client) doRequest(method, url string, body io.Reader, contentType strin
 
 // File operations
 func (c *Client) UploadFile(filePath string) error {
+	return c.UploadFileWithProgress(filePath, false)
+}
+
+func (c *Client) UploadFileWithProgress(filePath string, showProgress bool) error {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return fmt.Errorf("open file: %w", err)
 	}
 	defer file.Close()
 
-	var buf bytes.Buffer
-	writer := multipart.NewWriter(&buf)
-
-	part, err := writer.CreateFormFile("file", filepath.Base(filePath))
+	fileInfo, err := file.Stat()
 	if err != nil {
-		return fmt.Errorf("create form file: %w", err)
+		return fmt.Errorf("get file info: %w", err)
 	}
 
-	_, err = io.Copy(part, file)
-	if err != nil {
-		return fmt.Errorf("copy file: %w", err)
+	// Create a pipe for streaming
+	pipeReader, pipeWriter := io.Pipe()
+	writer := multipart.NewWriter(pipeWriter)
+	contentType := writer.FormDataContentType()
+
+	// Start a goroutine to write to the pipe
+	go func() {
+		defer pipeWriter.Close()
+		defer writer.Close()
+
+		part, err := writer.CreateFormFile("file", filepath.Base(filePath))
+		if err != nil {
+			pipeWriter.CloseWithError(err)
+			return
+		}
+
+		_, err = io.Copy(part, file)
+		if err != nil {
+			pipeWriter.CloseWithError(err)
+			return
+		}
+	}()
+
+	var body io.Reader = pipeReader
+	if showProgress {
+		// Calculate the approximate size of the multipart request
+		// This is an estimation: file size + multipart overhead (roughly 200-300 bytes)
+		totalSize := fileInfo.Size() + 300
+		progressReader := progress.NewReader(pipeReader, totalSize, "Uploading "+filepath.Base(filePath))
+		defer progressReader.Close()
+		body = progressReader
 	}
 
-	writer.Close()
-
-	resp, err := c.doRequest("POST", "/api/file/upload", &buf, writer.FormDataContentType())
+	resp, err := c.doRequest("POST", "/api/file/upload", body, contentType)
 	if err != nil {
 		return fmt.Errorf("upload request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("upload failed: %s", string(body))
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("upload failed: %s", string(respBody))
 	}
 
 	return nil
 }
 
 func (c *Client) DownloadFile(filename, destPath string) error {
+	return c.DownloadFileWithProgress(filename, destPath, false)
+}
+
+func (c *Client) DownloadFileWithProgress(filename, destPath string, showProgress bool) error {
 	resp, err := c.doRequest("GET", "/api/file/download/"+filename, nil, "")
 	if err != nil {
 		return fmt.Errorf("download request: %w", err)
@@ -98,7 +131,19 @@ func (c *Client) DownloadFile(filename, destPath string) error {
 	}
 	defer file.Close()
 
-	_, err = io.Copy(file, resp.Body)
+	if showProgress {
+		contentLength := resp.Header.Get("Content-Length")
+		if contentLength != "" {
+			size, _ := strconv.ParseInt(contentLength, 10, 64)
+			progressReader := progress.NewReader(resp.Body, size, "Downloading "+filename)
+			defer progressReader.Close()
+			_, err = io.Copy(file, progressReader)
+		} else {
+			_, err = io.Copy(file, resp.Body)
+		}
+	} else {
+		_, err = io.Copy(file, resp.Body)
+	}
 	if err != nil {
 		return fmt.Errorf("save file: %w", err)
 	}
@@ -147,42 +192,73 @@ func (c *Client) DeleteFile(filename string) error {
 
 // Image operations
 func (c *Client) UploadImage(imagePath string) error {
+	return c.UploadImageWithProgress(imagePath, false)
+}
+
+func (c *Client) UploadImageWithProgress(imagePath string, showProgress bool) error {
 	file, err := os.Open(imagePath)
 	if err != nil {
 		return fmt.Errorf("open image: %w", err)
 	}
 	defer file.Close()
 
-	var buf bytes.Buffer
-	writer := multipart.NewWriter(&buf)
-
-	part, err := writer.CreateFormFile("image", filepath.Base(imagePath))
+	fileInfo, err := file.Stat()
 	if err != nil {
-		return fmt.Errorf("create form file: %w", err)
+		return fmt.Errorf("get image info: %w", err)
 	}
 
-	_, err = io.Copy(part, file)
-	if err != nil {
-		return fmt.Errorf("copy image: %w", err)
+	// Create a pipe for streaming
+	pipeReader, pipeWriter := io.Pipe()
+	writer := multipart.NewWriter(pipeWriter)
+	contentType := writer.FormDataContentType()
+
+	// Start a goroutine to write to the pipe
+	go func() {
+		defer pipeWriter.Close()
+		defer writer.Close()
+
+		part, err := writer.CreateFormFile("image", filepath.Base(imagePath))
+		if err != nil {
+			pipeWriter.CloseWithError(err)
+			return
+		}
+
+		_, err = io.Copy(part, file)
+		if err != nil {
+			pipeWriter.CloseWithError(err)
+			return
+		}
+	}()
+
+	var body io.Reader = pipeReader
+	if showProgress {
+		// Calculate the approximate size of the multipart request
+		// This is an estimation: file size + multipart overhead (roughly 200-300 bytes)
+		totalSize := fileInfo.Size() + 300
+		progressReader := progress.NewReader(pipeReader, totalSize, "Uploading "+filepath.Base(imagePath))
+		defer progressReader.Close()
+		body = progressReader
 	}
 
-	writer.Close()
-
-	resp, err := c.doRequest("POST", "/api/img/upload", &buf, writer.FormDataContentType())
+	resp, err := c.doRequest("POST", "/api/img/upload", body, contentType)
 	if err != nil {
 		return fmt.Errorf("upload request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("upload failed: %s", string(body))
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("upload failed: %s", string(respBody))
 	}
 
 	return nil
 }
 
 func (c *Client) DownloadImage(imageName, destPath string) error {
+	return c.DownloadImageWithProgress(imageName, destPath, false)
+}
+
+func (c *Client) DownloadImageWithProgress(imageName, destPath string, showProgress bool) error {
 	resp, err := c.doRequest("GET", "/api/img/download/"+imageName, nil, "")
 	if err != nil {
 		return fmt.Errorf("download request: %w", err)
@@ -204,7 +280,19 @@ func (c *Client) DownloadImage(imageName, destPath string) error {
 	}
 	defer file.Close()
 
-	_, err = io.Copy(file, resp.Body)
+	if showProgress {
+		contentLength := resp.Header.Get("Content-Length")
+		if contentLength != "" {
+			size, _ := strconv.ParseInt(contentLength, 10, 64)
+			progressReader := progress.NewReader(resp.Body, size, "Downloading "+imageName)
+			defer progressReader.Close()
+			_, err = io.Copy(file, progressReader)
+		} else {
+			_, err = io.Copy(file, resp.Body)
+		}
+	} else {
+		_, err = io.Copy(file, resp.Body)
+	}
 	if err != nil {
 		return fmt.Errorf("save image: %w", err)
 	}
