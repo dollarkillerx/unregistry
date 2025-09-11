@@ -1,23 +1,20 @@
-FROM golang:1.25
+FROM golang:1.25 AS builder
 
 WORKDIR /app
-
-# Copy everything
 COPY . .
-
-# Build server
 RUN go build -o server ./cmd/server
 
-# Create data directory
+FROM alpine:latest
+
+WORKDIR /app
+COPY --from=builder /app/server .
+
 RUN mkdir -p /data
 
-# Expose port
 EXPOSE 8080
 
-# Set environment variables
 ENV LISTEN_ADDR=0.0.0.0:8080
 ENV DATA_PATH=/data
 ENV TOKEN=123456
 
-# Run the server
 CMD ["./server"]
