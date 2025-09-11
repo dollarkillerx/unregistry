@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  unregistry:
+    image: unregistry:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - TOKEN=aeb5cc30-83c8-4edf-a4b2-11182b4e65b3
+    volumes:
+      - ./data:/data
