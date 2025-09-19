@@ -50,9 +50,17 @@ func (h *FileHandler) Download(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
+	// Get file info to set Content-Length
+	fileInfo, err := file.Stat()
+	if err != nil {
+		http.Error(w, "Failed to get file info", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
-	
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", fileInfo.Size()))
+
 	_, err = io.Copy(w, file)
 	if err != nil {
 		http.Error(w, "Failed to download file", http.StatusInternalServerError)
